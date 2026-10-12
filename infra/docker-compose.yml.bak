@@ -1,0 +1,54 @@
+name: patient-live-status-management
+services:
+  mongo:
+    image: mongo:7
+    container_name: patient-live-status-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: patient-live-status
+    volumes:
+      - mongo_data:/data/db
+
+  redis:
+    image: redis:7-alpine
+    container_name: patient-live-status-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  backend:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.backend
+    container_name: patient-live-status-backend
+    restart: unless-stopped
+    depends_on:
+      - mongo
+      - redis
+    env_file:
+      - ../backend/.env
+    ports:
+      - "5000:5000"
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/patient-live-status
+      REDIS_URL: redis://redis:6379
+      CLIENT_URL: http://localhost:5173
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.frontend
+    container_name: patient-live-status-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_BASE_URL: http://localhost:5000/api
+      VITE_SOCKET_URL: http://localhost:5000
+
+volumes:
+  mongo_data:
